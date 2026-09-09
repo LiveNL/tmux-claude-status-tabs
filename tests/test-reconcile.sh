@@ -48,6 +48,7 @@ run
 check "waiting paints permission" "$(claude_pane_state "$P")" "permission"
 
 # 4. idle retires a spinning tab to input
+TMUX_PANE=$P claude_clear_settled   # drop the colour test 1's busy pass parked
 TMUX_PANE=$P claude_set_state running
 stale_beat
 sess idle
@@ -81,3 +82,29 @@ stale_beat
 sess busy
 run
 check "busy under a running tab changes nothing" "$(claude_pane_state "$P")" "running"
+
+# 9. busy then idle, no Stop in between, hands back the colour busy took away
+TMUX_PANE=$P claude_set_settled done
+TMUX_PANE=$P claude_set_state done
+stale_beat
+sess busy
+run
+check "busy parks the settled colour" "$(TMUX_PANE=$P claude_pane_opt @claude-pane-resume)" "done"
+stale_beat
+sess idle
+run
+check "idle after that restores done" "$(claude_pane_state "$P")" "done"
+check "and settles on it" "$(TMUX_PANE=$P claude_pane_opt @claude-pane-settled)" "done"
+check "and forgets the parked colour" "$(TMUX_PANE=$P claude_pane_opt @claude-pane-resume)" ""
+
+# 10. a new prompt between the two forgets the parked colour
+TMUX_PANE=$P claude_set_settled done
+TMUX_PANE=$P claude_set_state done
+stale_beat
+sess busy
+run
+TMUX_PANE=$P claude_clear_settled   # what UserPromptSubmit does
+stale_beat
+sess idle
+run
+check "a prompt in between drops the parked colour" "$(claude_pane_state "$P")" "input"

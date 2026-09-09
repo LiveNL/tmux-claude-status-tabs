@@ -189,6 +189,9 @@ claude_clear_settled() {
     [ -n "$TMUX" ] || return 0
     [ -n "$TMUX_PANE" ] || return 1
     tmux set-option -p -u -t "$TMUX_PANE" @claude-pane-settled 2>/dev/null
+    # The reconciler parks a settled colour here while the file says busy. A
+    # new turn owes it nothing, so it goes with the hold.
+    tmux set-option -p -u -t "$TMUX_PANE" @claude-pane-resume 2>/dev/null
 }
 
 claude_set_state() {
@@ -461,7 +464,7 @@ claude_clear_pane() {
     [ -n "$TMUX_PANE" ] || return 1
     local opt
     for opt in @claude-pane-state @claude-pane-phase @claude-pane-tool @claude-pane-beat \
-               @claude-pane-seq @claude-pane-ask @claude-pane-settled; do
+               @claude-pane-seq @claude-pane-ask @claude-pane-settled @claude-pane-resume; do
         tmux set-option -p -u -t "$TMUX_PANE" "$opt" 2>/dev/null
     done
     claude_sync_window

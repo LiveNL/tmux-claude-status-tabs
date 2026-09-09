@@ -16,7 +16,8 @@
 #
 #   file busy     tab settled or red   ->  running   (the work is observable)
 #   file waiting  tab anything else    ->  permission (a dialog is up)
-#   file idle     tab running or red   ->  input      (missed ending, Esc)
+#   file idle     tab running or red   ->  input      (missed ending, Esc), or
+#                                          the colour a busy pass took away
 #
 # Two grace guards keep the authorities from fighting over an edge: a pane
 # whose hook activity is fresher than GRACE seconds is left alone, and so is
@@ -102,7 +103,13 @@ for f in "$SESSIONS_DIR"/*.json; do
             TMUX_PANE="$pane" claude_ask_pending && continue
             case "$state" in
                 done|input|permission|"")
+                    # The colour the last Stop settled on is kept aside: the
+                    # stop-hook chain puts the file on busy after every Stop,
+                    # and when it ends without a continuation the idle pass
+                    # below must hand that colour back, not a generic amber.
+                    resume=$(TMUX_PANE="$pane" claude_pane_opt @claude-pane-settled)
                     TMUX_PANE="$pane" claude_clear_settled
+                    [ -n "$resume" ] && tmux set-option -p -t "$pane" @claude-pane-resume "$resume" 2>/dev/null
                     TMUX_PANE="$pane" claude_mark_activity "reconciled" ""
                     TMUX_PANE="$pane" claude_set_state "running"
                     claude_start_spinner "$pane"
@@ -120,10 +127,14 @@ for f in "$SESSIONS_DIR"/*.json; do
             # a Stop that never reached this pane. It awaits you either way.
             case "$state" in
                 running|permission)
+                    # A run this pass itself started over a settled tab ends
+                    # in the colour it took away; anything else awaits you.
+                    resume=$(TMUX_PANE="$pane" claude_pane_opt @claude-pane-resume)
+                    tmux set-option -p -u -t "$pane" @claude-pane-resume 2>/dev/null
                     TMUX_PANE="$pane" claude_clear_ask
                     TMUX_PANE="$pane" claude_mark_activity "reconciled" ""
-                    TMUX_PANE="$pane" claude_set_settled "input"
-                    TMUX_PANE="$pane" claude_set_state "input"
+                    TMUX_PANE="$pane" claude_set_settled "${resume:-input}"
+                    TMUX_PANE="$pane" claude_set_state "${resume:-input}"
                     ;;
             esac
             ;;
