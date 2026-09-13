@@ -1,6 +1,3 @@
 .DS_Store
-hooks/block-aws.sh
-hooks/retro-queue-notice.sh
-hooks/session-end-retro.sh
 demo/.cover-raw.gif
 demo/.minis-raw.gif
